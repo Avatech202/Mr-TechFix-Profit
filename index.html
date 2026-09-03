@@ -488,10 +488,15 @@
     };
 
     window.openLogsModal = function() {
-        populateMonthDropdown();
-        renderLogsView();
-        document.getElementById('monthlySummaryCard').style.display = 'none';
-        document.getElementById('logsModal').style.display = 'block';
+        const pass = prompt("Enter Password to View Logs:");
+        if (pass === MASTER_PASSWORD) {
+            populateMonthDropdown();
+            renderLogsView();
+            document.getElementById('monthlySummaryCard').style.display = 'none';
+            document.getElementById('logsModal').style.display = 'block';
+        } else {
+            alert("Incorrect password. Access to logs denied.");
+        }
     };
 
     window.closeLogsModal = function() {
