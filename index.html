@@ -311,12 +311,14 @@
     const MASTER_PASSWORD = "Aa068930";
 
     let globalCloudLogs = [];
+    let sessionRepairs = []; // Holds items logged during current session only
 
     function getTodayDateString() {
         const today = new Date();
         return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     }
 
+    // Real-time listener: Syncs with Firestore without force-populating the main table on reload
     const q = query(collection(db, "repairs"), orderBy("timestamp", "desc"));
     onSnapshot(q, (snapshot) => {
         globalCloudLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -324,7 +326,6 @@
         document.getElementById('syncStatus').innerText = "☁️ Cloud Synced";
         document.getElementById('syncStatus').classList.add('status-online');
         
-        renderTodayTable();
         if (document.getElementById('logsModal').style.display === 'block') {
             renderLogsView();
             calculateMonthlyTotal();
@@ -347,16 +348,22 @@
         const profit = charged - used;
         const dateStr = getTodayDateString();
 
+        const repairData = {
+            device,
+            charged,
+            used,
+            profit,
+            date: dateStr,
+            time: new Date().toLocaleTimeString(),
+            timestamp: Date.now()
+        };
+
         try {
-            await addDoc(collection(db, "repairs"), {
-                device,
-                charged,
-                used,
-                profit,
-                date: dateStr,
-                time: new Date().toLocaleTimeString(),
-                timestamp: Date.now()
-            });
+            await addDoc(collection(db, "repairs"), repairData);
+
+            // Add item to temporary session array for display on main table
+            sessionRepairs.unshift(repairData);
+            renderSessionTable();
 
             document.getElementById('deviceName').value = '';
             document.getElementById('moneyCharged').value = '';
@@ -366,13 +373,11 @@
         }
     };
 
-    function renderTodayTable() {
-        const todayStr = getTodayDateString();
-        const todayItems = globalCloudLogs.filter(item => item.date === todayStr);
+    function renderSessionTable() {
         const tableBody = document.getElementById('repairsTable').getElementsByTagName('tbody')[0];
-        
         tableBody.innerHTML = '';
-        todayItems.forEach(item => {
+
+        sessionRepairs.forEach(item => {
             const newRow = tableBody.insertRow();
             newRow.innerHTML = `
                 <td><strong>${item.device}</strong></td>
