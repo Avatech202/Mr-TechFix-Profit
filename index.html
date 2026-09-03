@@ -385,13 +385,26 @@
     let globalCloudLogs = [];
     let sessionRepairs = [];
 
+    // Helper to unlock UI
+    function unlockInterface() {
+        document.getElementById('accessLockOverlay').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'block';
+        document.getElementById('viewLogsLink').style.display = 'block';
+    }
+
+    // Automatically check if browser is trusted on page load
+    window.addEventListener('DOMContentLoaded', () => {
+        if (localStorage.getItem('mrtechfix_trusted_device') === 'true') {
+            unlockInterface();
+        }
+    });
+
     // Check Access Password
     window.checkAccessPassword = function() {
         const inputPass = document.getElementById('sitePasswordInput').value;
         if (inputPass === MASTER_PASSWORD) {
-            document.getElementById('accessLockOverlay').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'block';
-            document.getElementById('viewLogsLink').style.display = 'block';
+            localStorage.setItem('mrtechfix_trusted_device', 'true');
+            unlockInterface();
         } else {
             alert("Incorrect password. Access denied.");
         }
@@ -488,14 +501,22 @@
     };
 
     window.openLogsModal = function() {
-        const pass = prompt("Enter Password to View Logs:");
-        if (pass === MASTER_PASSWORD) {
+        if (localStorage.getItem('mrtechfix_trusted_device') === 'true') {
             populateMonthDropdown();
             renderLogsView();
             document.getElementById('monthlySummaryCard').style.display = 'none';
             document.getElementById('logsModal').style.display = 'block';
         } else {
-            alert("Incorrect password. Access to logs denied.");
+            const pass = prompt("Enter Password to View Logs:");
+            if (pass === MASTER_PASSWORD) {
+                localStorage.setItem('mrtechfix_trusted_device', 'true');
+                populateMonthDropdown();
+                renderLogsView();
+                document.getElementById('monthlySummaryCard').style.display = 'none';
+                document.getElementById('logsModal').style.display = 'block';
+            } else {
+                alert("Incorrect password. Access to logs denied.");
+            }
         }
     };
 
