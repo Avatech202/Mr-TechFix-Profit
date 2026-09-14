@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Repair Shop Profit Tracker</title>
+    <title>Amosnde Graphics Profit Tracker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,7 +14,7 @@
             min-height: 90vh;
         }
 
-        /* Access Overlay Screen */
+        /* Access Lock Screen */
         #accessLockOverlay {
             position: fixed;
             top: 0; left: 0;
@@ -71,7 +71,7 @@
             display: flex;
             align-items: center;
             gap: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         .header-container h2 {
             margin: 0;
@@ -83,6 +83,41 @@
             width: auto;
             object-fit: contain;
         }
+
+        /* Date Navigation Bar */
+        .date-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #eef2f5;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #dcdfe3;
+        }
+        .date-display {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 15px;
+        }
+        .btn-date-nav {
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            width: auto;
+        }
+        .btn-date-nav:hover {
+            background-color: #1f618d;
+        }
+
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
         input {
@@ -282,7 +317,7 @@
 <div id="accessLockOverlay">
     <div class="lock-card">
         <h3 style="margin-top: 0; color: #2c3e50;">🔒 Password Required</h3>
-        <p style="font-size: 14px; color: #666;">Enter password to access Mr TechFix Profit Tracker:</p>
+        <p style="font-size: 14px; color: #666;">Enter password to access the site (You must be Amos or Alex):</p>
         <input type="password" id="sitePasswordInput" placeholder="Password">
         <button onclick="checkAccessPassword()">Unlock Tracker</button>
     </div>
@@ -291,14 +326,21 @@
 <!-- Main Tracker UI -->
 <div class="container" id="appContainer">
     <div class="header-container">
-        <img src="https://mrtechfix.co.ke/wp-content/uploads/2023/10/cropped-logo-main-1.webp" alt="Mr TechFix Logo" class="site-logo">
-        <h2>Mr TechFix Shop Profit Tracker</h2>
+        <img src="https://amosndegraphics.com/wp-content/uploads/2022/05/cropped-cropped-my-logo.png" alt="Amosnde Graphics Logo" class="site-logo">
+        <h2>Amosnde Graphics Profit Tracker</h2>
         <span id="syncStatus" class="status-badge">Connecting Cloud...</span>
+    </div>
+
+    <!-- Active Date Display & Navigation Controls -->
+    <div class="date-bar">
+        <button class="btn-date-nav" onclick="changeDay(-1)">◀️ Prev Day</button>
+        <span class="date-display" id="activeDateDisplay">📅 Active Date: Loading...</span>
+        <button class="btn-date-nav" onclick="changeDay(1)">Next Day ⏭️</button>
     </div>
     
     <div class="form-group">
-        <label for="deviceName">Device Name</label>
-        <input type="text" id="deviceName" placeholder="e.g., iPhone 13 Pro">
+        <label for="projectName">Project / Design Name</label>
+        <input type="text" id="projectName" placeholder="e.g., Logo Design / Business Cards">
     </div>
     
     <div class="form-group">
@@ -308,15 +350,15 @@
     
     <div class="form-group">
         <label for="moneyUsed">Money Used (KSh)</label>
-        <input type="number" id="moneyUsed" placeholder="Parts + Expenses">
+        <input type="number" id="moneyUsed" placeholder="Printing + Expenses">
     </div>
     
-    <button onclick="addRepair()">Log Repair Job</button>
+    <button onclick="addProject()">Log Graphics Job</button>
 
-    <table id="repairsTable">
+    <table id="projectsTable">
         <thead>
             <tr>
-                <th>Device</th>
+                <th>Project</th>
                 <th>Charged</th>
                 <th>Expenses</th>
                 <th>Profit</th>
@@ -325,10 +367,10 @@
         <tbody></tbody>
     </table>
 
-    <button class="summary-btn" onclick="showDailySummary()">Check Full Day Profit Made</button>
+    <button class="summary-btn" id="checkDailyProfitBtn" onclick="showDailySummary()">Check Profit Made for Selected Date</button>
 
     <div class="summary-box" id="summaryBox">
-        <h3>💰 Total Profit Made Today: <span id="totalProfitText">KSh 0</span></h3>
+        <h3>💰 Total Profit (<span id="summaryDateLabel"></span>): <span id="totalProfitText">KSh 0</span></h3>
     </div>
 </div>
 
@@ -364,47 +406,95 @@
 <!-- Firebase Modular SDK Setup -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
     import { 
         getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
-        apiKey: "AIzaSyCnJCr6DsZExPzxyajaD1mi7UpDRB9Rq7M",
-        authDomain: "mr-techfix-profit-tracker.firebaseapp.com",
-        projectId: "mr-techfix-profit-tracker",
-        storageBucket: "mr-techfix-profit-tracker.firebasestorage.app",
-        messagingSenderId: "594059017133",
-        appId: "1:594059017133:web:1aab0aa4ddc14bec827f24",
-        measurementId: "G-HRPR37VQ8R"
+        apiKey: "AIzaSyAs3OaETY-b0A9P1CpFGDIsnQwL2x6Doc0",
+        authDomain: "amosnde-profit-tracker.firebaseapp.com",
+        projectId: "amosnde-profit-tracker",
+        storageBucket: "amosnde-profit-tracker.firebasestorage.app",
+        messagingSenderId: "134687766067",
+        appId: "1:134687766067:web:aa1b63bc26574a14c45546",
+        measurementId: "G-WM63S4PFR6"
     };
 
     const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
     const db = getFirestore(app);
+
     const MASTER_PASSWORD = "Aa068930";
-
     let globalCloudLogs = [];
-    let sessionRepairs = [];
+    let sessionProjects = [];
+    let activeDateStr = "";
 
-    // Helper to unlock UI
+    localStorage.removeItem('amosnde_trusted_device');
+
+    function formatDateToString(d) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function initActiveDate() {
+        const todayStr = formatDateToString(new Date());
+        const savedDate = localStorage.getItem('amosnde_active_date');
+
+        if (!savedDate || savedDate < todayStr) {
+            activeDateStr = todayStr;
+            localStorage.setItem('amosnde_active_date', todayStr);
+        } else {
+            activeDateStr = savedDate;
+        }
+
+        updateDateUI();
+    }
+
+    function updateDateUI() {
+        document.getElementById('activeDateDisplay').innerText = `📅 Active Date: ${activeDateStr}`;
+        document.getElementById('checkDailyProfitBtn').innerText = `Check Full Profit Made (${activeDateStr})`;
+    }
+
+    window.changeDay = function(offsetDays) {
+        const [year, month, day] = activeDateStr.split('-').map(Number);
+        const currentDate = new Date(year, month - 1, day);
+        
+        currentDate.setDate(currentDate.getDate() + offsetDays);
+
+        // Sunday Check (getDay() === 0 means Sunday)
+        if (currentDate.getDay() === 0) {
+            if (offsetDays > 0) {
+                // Moving forward: Jump from Sunday to Monday (+1 day)
+                currentDate.setDate(currentDate.getDate() + 1);
+            } else {
+                // Moving backward: Jump from Sunday to Saturday (-1 day)
+                currentDate.setDate(currentDate.getDate() - 1);
+            }
+        }
+
+        activeDateStr = formatDateToString(currentDate);
+        localStorage.setItem('amosnde_active_date', activeDateStr);
+        
+        sessionProjects = [];
+        renderSessionTable();
+        document.getElementById('summaryBox').style.display = 'none';
+        
+        updateDateUI();
+    };
+
+    initActiveDate();
+
     function unlockInterface() {
         document.getElementById('accessLockOverlay').style.display = 'none';
         document.getElementById('appContainer').style.display = 'block';
         document.getElementById('viewLogsLink').style.display = 'block';
     }
 
-    // Automatically check if browser is trusted on page load
-    window.addEventListener('DOMContentLoaded', () => {
-        if (localStorage.getItem('mrtechfix_trusted_device') === 'true') {
-            unlockInterface();
-        }
-    });
-
-    // Check Access Password
     window.checkAccessPassword = function() {
         const inputPass = document.getElementById('sitePasswordInput').value;
         if (inputPass === MASTER_PASSWORD) {
-            localStorage.setItem('mrtechfix_trusted_device', 'true');
             unlockInterface();
+            document.getElementById('sitePasswordInput').value = '';
         } else {
             alert("Incorrect password. Access denied.");
         }
@@ -416,12 +506,7 @@
         }
     });
 
-    function getTodayDateString() {
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    }
-
-    const q = query(collection(db, "repairs"), orderBy("timestamp", "desc"));
+    const q = query(collection(db, "graphics_jobs"), orderBy("timestamp", "desc"));
     onSnapshot(q, (snapshot) => {
         globalCloudLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
@@ -437,36 +522,35 @@
         document.getElementById('syncStatus').innerText = "❌ Sync Failed";
     });
 
-    window.addRepair = async function() {
-        const device = document.getElementById('deviceName').value.trim();
+    window.addProject = async function() {
+        const project = document.getElementById('projectName').value.trim();
         const charged = parseFloat(document.getElementById('moneyCharged').value) || 0;
         const used = parseFloat(document.getElementById('moneyUsed').value) || 0;
 
-        if (!device || charged === 0) {
-            alert("Please fill out the Device Name and Money Charged field.");
+        if (!project || charged === 0) {
+            alert("Please fill out the Project/Design Name and Money Charged field.");
             return;
         }
 
         const profit = charged - used;
-        const dateStr = getTodayDateString();
 
-        const repairData = {
-            device,
+        const jobData = {
+            project,
             charged,
             used,
             profit,
-            date: dateStr,
+            date: activeDateStr,
             time: new Date().toLocaleTimeString(),
             timestamp: Date.now()
         };
 
         try {
-            await addDoc(collection(db, "repairs"), repairData);
+            await addDoc(collection(db, "graphics_jobs"), jobData);
 
-            sessionRepairs.unshift(repairData);
+            sessionProjects.unshift(jobData);
             renderSessionTable();
 
-            document.getElementById('deviceName').value = '';
+            document.getElementById('projectName').value = '';
             document.getElementById('moneyCharged').value = '';
             document.getElementById('moneyUsed').value = '';
         } catch (e) {
@@ -475,13 +559,13 @@
     };
 
     function renderSessionTable() {
-        const tableBody = document.getElementById('repairsTable').getElementsByTagName('tbody')[0];
+        const tableBody = document.getElementById('projectsTable').getElementsByTagName('tbody')[0];
         tableBody.innerHTML = '';
 
-        sessionRepairs.forEach(item => {
+        sessionProjects.forEach(item => {
             const newRow = tableBody.insertRow();
             newRow.innerHTML = `
-                <td><strong>${item.device}</strong></td>
+                <td><strong>${item.project}</strong></td>
                 <td>KSh ${item.charged.toLocaleString()}</td>
                 <td>KSh ${item.used.toLocaleString()}</td>
                 <td style="color: ${item.profit >= 0 ? '#27ae60' : '#c0392b'}; font-weight: bold;">
@@ -492,31 +576,23 @@
     }
 
     window.showDailySummary = function() {
-        const todayStr = getTodayDateString();
-        const todayItems = globalCloudLogs.filter(item => item.date === todayStr);
-        const total = todayItems.reduce((acc, curr) => acc + curr.profit, 0);
+        const dateSpecificItems = globalCloudLogs.filter(item => item.date === activeDateStr);
+        const total = dateSpecificItems.reduce((acc, curr) => acc + curr.profit, 0);
         
+        document.getElementById('summaryDateLabel').innerText = activeDateStr;
         document.getElementById('totalProfitText').innerText = "KSh " + total.toLocaleString();
         document.getElementById('summaryBox').style.display = 'block';
     };
 
     window.openLogsModal = function() {
-        if (localStorage.getItem('mrtechfix_trusted_device') === 'true') {
+        const pass = prompt("Enter Password to View Logs:");
+        if (pass === MASTER_PASSWORD) {
             populateMonthDropdown();
             renderLogsView();
             document.getElementById('monthlySummaryCard').style.display = 'none';
             document.getElementById('logsModal').style.display = 'block';
         } else {
-            const pass = prompt("Enter Password to View Logs:");
-            if (pass === MASTER_PASSWORD) {
-                localStorage.setItem('mrtechfix_trusted_device', 'true');
-                populateMonthDropdown();
-                renderLogsView();
-                document.getElementById('monthlySummaryCard').style.display = 'none';
-                document.getElementById('logsModal').style.display = 'block';
-            } else {
-                alert("Incorrect password. Access to logs denied.");
-            }
+            alert("Incorrect password. Access to logs denied.");
         }
     };
 
@@ -600,7 +676,7 @@
                     </div>
                     <table>
                         <thead>
-                            <tr><th>Device</th><th>Charged</th><th>Expenses</th><th>Profit</th><th style="width: 70px; text-align:center;">Action</th></tr>
+                            <tr><th>Project</th><th>Charged</th><th>Expenses</th><th>Profit</th><th style="width: 70px; text-align:center;">Action</th></tr>
                         </thead>
                         <tbody>
             `;
@@ -611,7 +687,7 @@
                 dayProfit += entry.profit;
                 tableHtml += `
                     <tr>
-                        <td>${entry.device}</td>
+                        <td>${entry.project}</td>
                         <td>KSh ${entry.charged.toLocaleString()}</td>
                         <td>KSh ${entry.used.toLocaleString()}</td>
                         <td style="color: ${entry.profit >= 0 ? '#27ae60' : '#c0392b'}; font-weight: bold;">
@@ -643,7 +719,7 @@
         if (newDate && newDate.trim() !== "" && newDate !== currentDate) {
             try {
                 for (let id of idsArray) {
-                    await updateDoc(doc(db, "repairs", id), { date: newDate.trim() });
+                    await updateDoc(doc(db, "graphics_jobs", id), { date: newDate.trim() });
                 }
             } catch (e) {
                 alert("Error updating date: " + e.message);
@@ -654,7 +730,7 @@
     window.deleteCloudItem = async function(id) {
         if (confirm("Are you sure you want to delete this log entry permanently from the cloud?")) {
             try {
-                await deleteDoc(doc(db, "repairs", id));
+                await deleteDoc(doc(db, "graphics_jobs", id));
             } catch (e) {
                 alert("Could not delete item: " + e.message);
             }
@@ -667,7 +743,7 @@
             if (pass === MASTER_PASSWORD) {
                 try {
                     for (let item of globalCloudLogs) {
-                        await deleteDoc(doc(db, "repairs", item.id));
+                        await deleteDoc(doc(db, "graphics_jobs", item.id));
                     }
                     alert("All logs have been wiped from Cloud Firestore.");
                 } catch (e) {
